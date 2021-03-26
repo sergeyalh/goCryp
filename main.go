@@ -12,7 +12,7 @@ type apiR struct {
 }
 
 type coin struct {
-	USD float64 `json:"UsSD"`
+	USD float64 `json:"דUSD"`
 }
 
 type Response struct {
