@@ -3,24 +3,25 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
 
-type apiR struct {
-	Response Response
+type Response struct {
+	Coins map[string]coin `json:""`
+}
+
+type ada struct {
+	Ada coin `json:"ADA"`
 }
 
 type coin struct {
 	USD float64 `json:"USD"`
 }
 
-type Response struct {
-	Ada coin `json:"ADA"`
-}
-
 type JSONType struct {
-	CoinMap map[string]ValsType `json:"data"`
+	CoinMap map[string]ValsType `json:"Data"`
 }
 
 type ValsType struct {
@@ -57,21 +58,24 @@ func initIMDB() *JSONType {
 
 func getCoinPrice() float64 {
 	// HTTP call
-	resp, err := http.Get("https://min-api.cryptocompare.com/data/pricemulti?fsyms=ADA&tsyms=USD")
+	resp, err := http.Get("https://min-api.cryptocompare.com/data/pricemulti?fsyms=usdt,ada&tsyms=USD")
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
-	// Decode JSON
-	dec := json.NewDecoder(resp.Body)
-	data := &apiR{}
-	if err := dec.Decode(data); err != nil {
-		fmt.Println(err)
+	mp := make(map[string]coin)
+
+	// Decode JSON into our map
+	bytes, err := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(bytes, &mp)
+	if err != nil {
+		println(err)
 	}
 
-	fmt.Println(data.Response.Ada.USD)
-	return data.Response.Ada.USD
+	// See what the map has now
+	fmt.Printf("mp is now: %+v\n", mp)
+	return 1.1
 }
 
 func main() {
@@ -79,7 +83,7 @@ func main() {
 	imdb := initIMDB()
 	ttl := 1
 
-	fmt.Println(imdb.CoinMap["ADA"].FullName)
+	fmt.Println(imdb.CoinMap["USDT"].FullName)
 
 	todayWith := time.Now().Add(time.Hour * time.Duration(ttl))
 	if todayWith.After(imdb.CoinMap["ADA"].PriceTime) {
@@ -88,7 +92,7 @@ func main() {
 		fmt.Println(currentPrice)
 
 	} else {
-		fmt.Println(imdb.CoinMap["ADA"].PriceTime)
-		fmt.Println(imdb.CoinMap["ADA"].ToUSD)
+		fmt.Println(imdb.CoinMap["USDT"].PriceTime)
+		fmt.Println(imdb.CoinMap["USDT"].ToUSD)
 	}
 }
