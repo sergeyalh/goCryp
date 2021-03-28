@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
 type Response struct {
 	Coins map[string]coin `json:""`
-}
-
-type ada struct {
-	Ada coin `json:"ADA"`
 }
 
 type coin struct {
@@ -26,7 +23,6 @@ type JSONType struct {
 
 type ValsType struct {
 	Id        string `json:"Id"`
-	CoinName  string `json."CoinName`
 	Url       string `json:"Url"`
 	ImageUrl  string `json:"ImageUrl"`
 	Name      string `json:"Name"`
@@ -56,9 +52,15 @@ func initIMDB() *JSONType {
 	return data
 }
 
-func getCoinPrice() float64 {
+func getCoinPrice(c string) float64 {
 	// HTTP call
-	resp, err := http.Get("https://min-api.cryptocompare.com/data/pricemulti?fsyms=usdt,ada&tsyms=USD")
+	params := url.Values{
+		"fsyms": {c},
+		"tsyms": {"USD"},
+	}
+	reqUrl := "https://min-api.cryptocompare.com/data/pricemulti?" + params.Encode()
+	fmt.Println(reqUrl)
+	resp, err := http.Get(reqUrl)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -73,9 +75,7 @@ func getCoinPrice() float64 {
 		println(err)
 	}
 
-	// See what the map has now
-	fmt.Printf("mp is now: %+v\n", mp)
-	return 1.1
+	return mp[c].USD
 }
 
 func main() {
@@ -83,16 +83,19 @@ func main() {
 	imdb := initIMDB()
 	ttl := 1
 
-	fmt.Println(imdb.CoinMap["USDT"].FullName)
-
 	todayWith := time.Now().Add(time.Hour * time.Duration(ttl))
 	if todayWith.After(imdb.CoinMap["ADA"].PriceTime) {
 		fmt.Println("need to updated price")
-		currentPrice := getCoinPrice()
-		fmt.Println(currentPrice)
+		t := imdb.CoinMap["ADA"]
+		currentPrice := getCoinPrice("ADA")
+		t.ToUSD = currentPrice
+		t.PriceTime = time.Now()
+		imdb.CoinMap["ADA"] = t
 
+		fmt.Println(imdb.CoinMap["ADA"].PriceTime)
+		fmt.Println(imdb.CoinMap["ADA"].ToUSD)
 	} else {
-		fmt.Println(imdb.CoinMap["USDT"].PriceTime)
-		fmt.Println(imdb.CoinMap["USDT"].ToUSD)
+		fmt.Println(imdb.CoinMap["ADA"].PriceTime)
+		fmt.Println(imdb.CoinMap["ADA"].ToUSD)
 	}
 }
