@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -52,6 +54,9 @@ func initIMDB() *JSONType {
 	return data
 }
 
+var imdb = initIMDB()
+var ttl = 1
+
 func getCoinPrice(c string) float64 {
 	// HTTP call
 	params := url.Values{
@@ -78,24 +83,33 @@ func getCoinPrice(c string) float64 {
 	return mp[c].USD
 }
 
-func main() {
+func getReqCoinPrice(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Hello Gophers!")
+	key := strings.ToUpper(r.URL.Path[10:]) // Get Coin symbol
+	if _, ok := imdb.CoinMap[key]; ok {
+		fmt.Fprintln(w, "You Asked for : "+key)
+		timeWithTTL := imdb.CoinMap["ADA"].PriceTime.Add(time.Minute * time.Duration(ttl))
+		if time.Now().After(timeWithTTL) {
+			fmt.Fprintln(w, "need to updated price")
+			t := imdb.CoinMap["ADA"]
+			currentPrice := getCoinPrice("ADA")
+			t.ToUSD = currentPrice
+			t.PriceTime = time.Now()
+			imdb.CoinMap["ADA"] = t
 
-	imdb := initIMDB()
-	ttl := 1
-
-	todayWith := time.Now().Add(time.Hour * time.Duration(ttl))
-	if todayWith.After(imdb.CoinMap["ADA"].PriceTime) {
-		fmt.Println("need to updated price")
-		t := imdb.CoinMap["ADA"]
-		currentPrice := getCoinPrice("ADA")
-		t.ToUSD = currentPrice
-		t.PriceTime = time.Now()
-		imdb.CoinMap["ADA"] = t
-
-		fmt.Println(imdb.CoinMap["ADA"].PriceTime)
-		fmt.Println(imdb.CoinMap["ADA"].ToUSD)
+			fmt.Fprintln(w, fmt.Sprintf("%f", imdb.CoinMap["ADA"].ToUSD))
+		} else {
+			fmt.Fprintln(w, fmt.Sprintf("%f", imdb.CoinMap["ADA"].ToUSD))
+		}
 	} else {
-		fmt.Println(imdb.CoinMap["ADA"].PriceTime)
-		fmt.Println(imdb.CoinMap["ADA"].ToUSD)
+		fmt.Fprintln(w, "You Asked for : "+key+" But there is no Coin like this")
+	}
+
+}
+
+func main() {
+	http.HandleFunc("/getPrice/", getReqCoinPrice)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
 	}
 }
