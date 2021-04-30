@@ -36,6 +36,14 @@ type ValsType struct {
 	PriceTime time.Time
 }
 
+type PostChangeTTLReq struct {
+	Ttl int `json:"Ttl"`
+}
+
+type PostChangeTTLRes struct {
+	Error string `json:"error"`
+}
+
 func initIMDB() *JSONType {
 	// HTTP call
 	resp, err := http.Get("https://min-api.cryptocompare.com/data/all/coinlist")
@@ -104,11 +112,46 @@ func getReqCoinPrice(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Fprintln(w, "You Asked for : "+key+" But there is no Coin like this")
 	}
+}
 
+func getTTL(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Hello Gophers!")
+	var currTtlAsAstring = fmt.Sprintf("Current Config for the TTL is :  %d", ttl)
+	fmt.Fprintln(w, currTtlAsAstring)
+}
+
+func setTTL(w http.ResponseWriter, r *http.Request) {
+	// Decode request
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	req := &PostChangeTTLReq{}
+
+	if err := dec.Decode(req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp := &PostChangeTTLRes{}
+	ttl = req.Ttl
+
+	resp.Error = "None"
+	// Encode & return result
+	w.Header().Set("Content-Type", "application/json")
+	if resp.Error != "" {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(resp); err != nil {
+		// Can't return error to client here
+		log.Printf("can't encode %v - %s", resp, err)
+	}
 }
 
 func main() {
 	http.HandleFunc("/getPrice/", getReqCoinPrice)
+	http.HandleFunc("/getTTL", getTTL)
+	http.HandleFunc("/setTTL", setTTL)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
